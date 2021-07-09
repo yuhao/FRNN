@@ -148,6 +148,13 @@ void CountingSortCUDA(const at::Tensor points, const at::Tensor lengths,
   // assert(D == 2 || D == 3);
   int G = grid_off.size(1);
 
+  float time;
+  cudaEvent_t start, stop;
+
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+
   if (D == 2) {
     CountingSort2DKernel<<<blocks, threads, 0, stream>>>(
         points.contiguous().data_ptr<float>(),
@@ -178,4 +185,9 @@ void CountingSortCUDA(const at::Tensor points, const at::Tensor lengths,
   }
 
   AT_CUDA_CHECK(cudaGetLastError());
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  std::cout << "sort time: " << std::setprecision(9) << time << std::endl;
 }

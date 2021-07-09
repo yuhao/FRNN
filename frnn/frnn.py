@@ -99,8 +99,15 @@ class _frnn_grid_points(Function):
                                       -1,
                                       dtype=torch.int,
                                       device=points1.device)
+            # YZ
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            start.record()
             _C.insert_points_cuda(points2, lengths2, grid_params_cuda,
                                   pc2_grid_cnt, pc2_grid_cell, pc2_grid_idx, G)
+            end.record()
+            torch.cuda.synchronize()
+            print("Python p2 insert time: ", start.elapsed_time(end))  # milliseconds
 
             # compute the offset for each grid
             # pc2_grid_off = _C.prefix_sum_cuda(pc2_grid_cnt, grid_params_cuda.cpu())
@@ -122,9 +129,15 @@ class _frnn_grid_points(Function):
                                              -1,
                                              dtype=torch.int,
                                              device=points1.device)
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            start.record()
             _C.counting_sort_cuda(points2, lengths2, pc2_grid_cell,
                                   pc2_grid_idx, pc2_grid_off, sorted_points2,
                                   sorted_points2_idxs)
+            end.record()
+            torch.cuda.synchronize()
+            print("Python p2 sort time: ", start.elapsed_time(end))  # milliseconds
 
         assert (sorted_points2 is not None and pc2_grid_off is not None and
                 sorted_points2_idxs is not None and
@@ -145,8 +158,15 @@ class _frnn_grid_points(Function):
                                   -1,
                                   dtype=torch.int,
                                   device=points1.device)
+        # YZ
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
         _C.insert_points_cuda(points1, lengths1, grid_params_cuda,
                               pc1_grid_cnt, pc1_grid_cell, pc1_grid_idx, G)
+        end.record()
+        torch.cuda.synchronize()
+        print("Python p1 insert time: ", start.elapsed_time(end))  # milliseconds
 
         # pc1_grid_off = _C.prefix_sum_cuda(pc1_grid_cnt, grid_params_cuda.cpu())
         grid_params = grid_params_cuda.cpu()
@@ -166,16 +186,30 @@ class _frnn_grid_points(Function):
                                          -1,
                                          dtype=torch.int,
                                          device=points1.device)
+        # YZ
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
         _C.counting_sort_cuda(points1, lengths1, pc1_grid_cell, pc1_grid_idx,
                               pc1_grid_off, sorted_points1,
                               sorted_points1_idxs)
+        end.record()
+        torch.cuda.synchronize()
+        print("Python p1 sort time: ", start.elapsed_time(end))  # milliseconds
 
+        # YZ
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
         # perform search on the grid
         idxs, dists = _C.find_nbrs_cuda(sorted_points1, sorted_points2,
                                         lengths1, lengths2, pc2_grid_off,
                                         sorted_points1_idxs,
                                         sorted_points2_idxs, grid_params_cuda,
                                         K, r, r * r)
+        end.record()
+        torch.cuda.synchronize()
+        print("Python search time: ", start.elapsed_time(end))  # milliseconds
 
         # TODO: compare which is faster: sort here or inside kernel function
         # if K > 1 and return_sorted:

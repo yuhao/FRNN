@@ -630,6 +630,7 @@ std::tuple<at::Tensor, at::Tensor> FindNbrsCUDA(
   int threads = 256;
 
   int version = FRNNChooseVersion(D, K);
+  printf("Use version: %d\n", version);
 
   // DispatchKernel1D<FindNbrsKernelFunctor, MIN_K, MAX_K>(
   //     K, blocks, threads, D, points1.contiguous().data_ptr<float>(),
@@ -642,6 +643,14 @@ std::tuple<at::Tensor, at::Tensor> FindNbrsCUDA(
   //     params.contiguous().data_ptr<float>(), dists.data_ptr<float>(),
   //     idxs.data_ptr<long>(), N, P1, P2, G, rs.data_ptr<float>(),
   //     r2s.data_ptr<float>());
+
+  float time;
+  cudaEvent_t start, stop;
+
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+
   if (version == 0) {
     assert(D > 2);
     FindNbrsNDKernelV0<<<blocks, threads, 0, stream>>>(
@@ -683,6 +692,11 @@ std::tuple<at::Tensor, at::Tensor> FindNbrsCUDA(
   } else {
     AT_ASSERTM(false, "Invalid version for find_nbrs");
   }
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  std::cout << "CUDA search time: " << std::setprecision(9) << time << std::endl;
 
   return std::make_tuple(idxs, dists);
 }
